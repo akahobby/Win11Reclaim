@@ -1,10 +1,10 @@
 # Shows the CLI app removal menu and prompts the user to select which apps to remove.
-function ShowCLIAppRemoval {
+function Show-NimbusCliAppRemoval {
     PrintHeader "App Removal"
 
-    Write-Output "> Opening app selection form..."
+    Write-Output "> Opening Win11Reclaim app selection form..."
 
-    $result = Show-AppSelectionWindow
+    $result = Show-NimbusAppSelection
 
     if ($result -eq $true) {
         Write-Output "You have selected $($script:SelectedApps.Count) apps for removal"

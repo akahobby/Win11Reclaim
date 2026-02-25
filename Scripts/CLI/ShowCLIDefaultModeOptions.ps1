@@ -1,5 +1,5 @@
 # Show CLI default mode options for removing apps, or set selection if RunDefaults or RunDefaultsLite parameter was passed
-function ShowCLIDefaultModeOptions {
+function Show-NimbusCliDefaultPreset {
     if ($RunDefaults) {
         $RemoveAppsInput = '1'
     }
@@ -7,7 +7,7 @@ function ShowCLIDefaultModeOptions {
         $RemoveAppsInput = '0'                
     }
     else {
-        $RemoveAppsInput = ShowCLIDefaultModeAppRemovalOptions
+        $RemoveAppsInput = Show-NimbusCliDefaultAppRemoval
 
         if ($RemoveAppsInput -eq '2' -and ($script:SelectedApps.contains('Microsoft.XboxGameOverlay') -or $script:SelectedApps.contains('Microsoft.XboxGamingOverlay')) -and 
           $( Read-Host -Prompt "Disable Game Bar integration and game/screen recording? This also stops ms-gamingoverlay and ms-gamebar popups (y/n)" ) -eq 'y') {

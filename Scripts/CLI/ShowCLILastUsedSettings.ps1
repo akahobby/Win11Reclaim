@@ -1,6 +1,6 @@
 # Shows the CLI last used settings from LastUsedSettings.json file, displays pending changes and prompts the user to apply them.
-function ShowCLILastUsedSettings {
-    PrintHeader 'Custom Mode'
+function Show-NimbusCliLastUsedSettings {
+    PrintHeader 'Previous configuration'
 
     try {
         # Load settings from LastUsedSettings.json and add to params
@@ -12,5 +12,5 @@ function ShowCLILastUsedSettings {
     }
 
     PrintPendingChanges
-    PrintHeader 'Custom Mode'
+    PrintHeader 'Previous configuration'
 }

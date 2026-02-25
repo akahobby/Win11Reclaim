@@ -1,5 +1,5 @@
 # Shows the CLI default mode app removal options. Loops until a valid option is selected.
-function ShowCLIDefaultModeAppRemovalOptions {
+function Show-NimbusCliDefaultAppRemoval {
     PrintHeader 'Default Mode'
 
     Write-Host "Please note: The default selection of apps includes Microsoft Teams, Spotify, Sticky Notes and more. Select option 2 to verify and change what apps are removed by the script" -ForegroundColor DarkGray
@@ -14,7 +14,7 @@ function ShowCLIDefaultModeAppRemovalOptions {
 
         # Show app selection form if user entered option 3
         if ($RemoveAppsInput -eq '2') {
-            $result = Show-AppSelectionWindow
+            $result = Show-NimbusAppSelection
 
             if ($result -ne $true) {
                 # User cancelled or closed app selection, change RemoveAppsInput so the menu will be shown again

@@ -1,6 +1,18 @@
-LastSettings
-SavedSettings
+# Logs and user data (generated at runtime)
+Logs/
+Win11Debloat.log
 LastUsedSettings.json
 CustomAppsList
-Logs/*
-Win11Debloat.log
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# Temp / IDE
+*.tmp
+*.temp
+.vs/
+.idea/
+
+# PowerShell
+*.ps1~

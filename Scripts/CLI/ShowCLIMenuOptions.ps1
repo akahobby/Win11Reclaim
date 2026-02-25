@@ -1,5 +1,5 @@
 # Shows the CLI menu options and prompts the user to select one. Loops until a valid option is selected.
-function ShowCLIMenuOptions {
+function Show-NimbusCliMenu {
     Do { 
         $ModeSelectionMessage = "Please select an option (1/2)" 
 

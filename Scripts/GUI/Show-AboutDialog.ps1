@@ -1,4 +1,4 @@
-function Show-AboutDialog {
+function Show-NimbusAboutDialog {
     param (
         [Parameter(Mandatory=$false)]
         [System.Windows.Window]$Owner = $null
@@ -59,15 +59,18 @@ function Show-AboutDialog {
         $aboutWindow.DragMove()
     })
     
-    # Project link click handler
-    $projectLink.Add_MouseLeftButtonDown({
-        Start-Process "https://github.com/Raphire/Win11Debloat"
-    })
+    # Project / GitHub link click handlers
+    if ($projectLink) {
+        $projectLink.Add_MouseLeftButtonDown({
+            Start-Process "https://github.com/akahobby/Win11Reclaim"
+        })
+    }
     
-    # Ko-fi link click handler
-    $kofiLink.Add_MouseLeftButtonDown({
-        Start-Process "https://ko-fi.com/raphire"
-    })
+    if ($kofiLink) {
+        $kofiLink.Add_MouseLeftButtonDown({
+            Start-Process "https://github.com/akahobby/Win11Reclaim"
+        })
+    }
     
     # Close button handler
     $closeButton.Add_Click({

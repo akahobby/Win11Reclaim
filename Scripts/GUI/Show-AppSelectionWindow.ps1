@@ -1,5 +1,5 @@
 # Shows application selection window that allows the user to select what apps they want to remove or keep
-function Show-AppSelectionWindow {
+function Show-NimbusAppSelection {
     Add-Type -AssemblyName PresentationFramework,PresentationCore,WindowsBase | Out-Null
 
     $usesDarkMode = GetSystemUsesDarkMode

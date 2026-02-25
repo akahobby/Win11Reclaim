@@ -1,10 +1,12 @@
-function Show-MainWindow {    
+function Show-NimbusMainWindow {    
     Add-Type -AssemblyName PresentationFramework,PresentationCore,WindowsBase,System.Windows.Forms | Out-Null
 
     # Get current Windows build version
     $WinVersion = Get-ItemPropertyValue 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' CurrentBuild
 
     $usesDarkMode = GetSystemUsesDarkMode
+    # Always use dark glassmorphism theme for Win11Reclaim
+    $usesDarkMode = $true
 
     # Load XAML from file
     $xaml = Get-Content -Path $script:MainWindowSchema -Raw
@@ -45,13 +47,18 @@ function Show-MainWindow {
         $menuBtn.ContextMenu.IsOpen = $true
     })
 
-    $menuDocumentation.Add_Click({
-        Start-Process "https://github.com/Raphire/Win11Debloat/wiki"
-    })
-
-    $menuReportBug.Add_Click({
-        Start-Process "https://github.com/Raphire/Win11Debloat/issues"
-    })
+    if ($menuDocumentation) {
+        $menuDocumentation.Add_Click({
+            # Documentation menu is currently hidden in the UI
+            # but handler is retained for future use if re-enabled.
+        })
+    }
+    
+    if ($menuReportBug) {
+        $menuReportBug.Add_Click({
+            Start-Process "https://github.com/akahobby/Win11Reclaim/issues"
+        })
+    }
 
     $menuLogs.Add_Click({
         $logsFolder = Join-Path $PSScriptRoot "../../Logs"
@@ -64,7 +71,7 @@ function Show-MainWindow {
     })
 
     $menuAbout.Add_Click({
-        Show-AboutDialog -Owner $window
+        Show-NimbusAboutDialog -Owner $window
     })
 
     $closeBtn.Add_Click({
@@ -255,8 +262,7 @@ function Show-MainWindow {
         # Column containers
         $col0 = $window.FindName('Column0Panel')
         $col1 = $window.FindName('Column1Panel')
-        $col2 = $window.FindName('Column2Panel')
-        $columns = @($col0, $col1, $col2) | Where-Object { $_ -ne $null }
+        $columns = @($col0, $col1) | Where-Object { $_ -ne $null }
 
         # Clear all columns for fully dynamic panel creation
         foreach ($col in $columns) {
@@ -333,17 +339,6 @@ function Show-MainWindow {
             return $combo
         }
 
-        function GetWikiUrlForCategory($category) {
-            if (-not $category) { return 'https://github.com/Raphire/Win11Debloat/wiki/Features' }
-
-            $slug = $category.ToLowerInvariant()
-            $slug = $slug -replace '&', ''
-            $slug = $slug -replace '[^a-z0-9\s-]', ''
-            $slug = $slug -replace '\s', '-'
-
-            return "https://github.com/Raphire/Win11Debloat/wiki/Features#$slug"
-        }
-
         function GetOrCreateCategoryCard($categoryObj) {
             $categoryName = $categoryObj.Name
             $categoryIcon = $categoryObj.Icon
@@ -378,21 +373,6 @@ function Show-MainWindow {
             $header.Text = $categoryName
             $header.Style = $window.Resources['CategoryHeaderTextBlock']
             $headerRow.Children.Add($header) | Out-Null
-
-            $helpIcon = New-Object System.Windows.Controls.TextBlock
-            $helpIcon.Text = '(?)'
-            $helpIcon.Style = $window.Resources['CategoryHelpLinkTextStyle']
-
-            $helpBtn = New-Object System.Windows.Controls.Button
-            $helpBtn.Content = $helpIcon
-            $helpBtn.ToolTip = "Open wiki for more info on '$categoryName' tweaks"
-            $helpBtn.Tag = (GetWikiUrlForCategory -category $categoryName)
-            $helpBtn.Style = $window.Resources['CategoryHelpLinkButtonStyle']
-            $helpBtn.Add_Click({
-                param($sender, $e)
-                if ($sender.Tag) { Start-Process $sender.Tag }
-            })
-            $headerRow.Children.Add($helpBtn) | Out-Null
 
             $panel.Children.Add($headerRow) | Out-Null
 
@@ -830,7 +810,6 @@ function Show-MainWindow {
     $tweaksGrid = $window.FindName('TweaksGrid')
     $col0 = $window.FindName('Column0Panel')
     $col1 = $window.FindName('Column1Panel')
-    $col2 = $window.FindName('Column2Panel')
     
     # Monitor scrollbar visibility and adjust searchbar margin
     $tweaksScrollViewer.Add_ScrollChanged({
@@ -844,7 +823,7 @@ function Show-MainWindow {
     
     # Helper function to clear all tweak highlights
     function ClearTweakHighlights {
-        $columns = @($col0, $col1, $col2) | Where-Object { $_ -ne $null }
+        $columns = @($col0, $col1) | Where-Object { $_ -ne $null }
         foreach ($column in $columns) {
             foreach ($card in $column.Children) {
                 if ($card -is [System.Windows.Controls.Border] -and $card.Child -is [System.Windows.Controls.StackPanel]) {
@@ -884,7 +863,7 @@ function Show-MainWindow {
         # Find and highlight all matching tweaks
         $firstMatch = $null
         $highlightBrush = $window.Resources["SearchHighlightColor"]
-        $columns = @($col0, $col1, $col2) | Where-Object { $_ -ne $null }
+        $columns = @($col0, $col1) | Where-Object { $_ -ne $null }
         
         foreach ($column in $columns) {
             foreach ($card in $column.Children) {
@@ -1005,6 +984,24 @@ function Show-MainWindow {
             $bottomNavGrid.Visibility = 'Collapsed'
         } else {
             $bottomNavGrid.Visibility = 'Visible'
+        }
+
+        # Step rail: show only on Apps (1), Tweaks (2), Overview (3); highlight active step
+        $stepRail = $window.FindName('StepRail')
+        $step1Border = $window.FindName('Step1Border')
+        $step2Border = $window.FindName('Step2Border')
+        $step3Border = $window.FindName('Step3Border')
+        if ($stepRail) {
+            if ($currentIndex -ge 1 -and $currentIndex -le 3) {
+                $stepRail.Visibility = 'Visible'
+                $highlight = [System.Windows.Media.BrushConverter]::new().ConvertFromString('#2A2A2A')
+                $transparent = [System.Windows.Media.Brushes]::Transparent
+                if ($step1Border) { $step1Border.Background = if ($currentIndex -eq 1) { $highlight } else { $transparent } }
+                if ($step2Border) { $step2Border.Background = if ($currentIndex -eq 2) { $highlight } else { $transparent } }
+                if ($step3Border) { $step3Border.Background = if ($currentIndex -eq 3) { $highlight } else { $transparent } }
+            } else {
+                $stepRail.Visibility = 'Collapsed'
+            }
         }
         
         # Update indicator colors based on current tab
@@ -1411,14 +1408,14 @@ function Show-MainWindow {
                 
                 $finishBtn.Dispatcher.Invoke([action]{
                     $finishBtn.IsEnabled = $true
-                    $finishBtnText.Text = "Close Win11Debloat"
+                    $finishBtnText.Text = "Close Win11Reclaim"
                 })
             }
             catch {
                 Write-ToConsole "Error: $($_.Exception.Message)"
                 $finishBtn.Dispatcher.Invoke([action]{
                     $finishBtn.IsEnabled = $true
-                    $finishBtnText.Text = "Close Win11Debloat"
+                    $finishBtnText.Text = "Close Win11Reclaim"
                 })
             }
         })

@@ -97,12 +97,12 @@ param (
 
 
 # Define script-level variables & paths
-$script:Version = "2026.02.19"
+$script:Version = "1.0.0"
 $script:DefaultSettingsFilePath = "$PSScriptRoot/DefaultSettings.json"
 $script:AppsListFilePath = "$PSScriptRoot/Apps.json"
 $script:SavedSettingsFilePath = "$PSScriptRoot/LastUsedSettings.json"
 $script:CustomAppsListFilePath = "$PSScriptRoot/CustomAppsList"
-$script:DefaultLogPath = "$PSScriptRoot/Logs/Win11Debloat.log"
+$script:DefaultLogPath = "$PSScriptRoot/Logs/Win11Reclaim.log"
 $script:RegfilesPath = "$PSScriptRoot/Regfiles"
 $script:AssetsPath = "$PSScriptRoot/Assets"
 $script:AppSelectionSchema = "$PSScriptRoot/Schemas/AppSelectionWindow.xaml"
@@ -121,7 +121,7 @@ $script:CancelRequested = $false
 
 # Check if current powershell environment is limited by security policies
 if ($ExecutionContext.SessionState.LanguageMode -ne "FullLanguage") {
-    Write-Error "Win11Debloat is unable to run on your system, powershell execution is restricted by security policies"
+    Write-Error "Win11Reclaim is unable to run on your system, PowerShell execution is restricted by security policies"
     Write-Output "Press any key to exit..."
     $null = [System.Console]::ReadKey()
     Exit
@@ -146,13 +146,13 @@ Write-Host "                   " -NoNewline; Write-Host "  |  " -ForegroundColor
 Write-Host "                   " -NoNewline; Write-Host "   (" -ForegroundColor Yellow -NoNewline; Write-Host "'''" -ForegroundColor Red -NoNewline; Write-Host ") " -ForegroundColor Yellow -NoNewline; Write-Host "   *  *" -ForegroundColor DarkYellow
 Write-Host "                   " -NoNewline; Write-Host "   ( " -ForegroundColor DarkYellow -NoNewline; Write-Host "'" -ForegroundColor Red -NoNewline; Write-Host " )   " -ForegroundColor DarkYellow -NoNewline; Write-Host "*" -ForegroundColor Yellow
 Write-Host ""
-Write-Host "             Win11Debloat is launching..." -ForegroundColor White
+Write-Host "             Win11Reclaim is launching..." -ForegroundColor White
 Write-Host "               Leave this window open" -ForegroundColor DarkGray
 Write-Host ""
 
-# Log script output to 'Win11Debloat.log' at the specified path
+# Log script output to a Win11Reclaim log file at the specified path
 if ($LogPath -and (Test-Path $LogPath)) {
-    Start-Transcript -Path "$LogPath/Win11Debloat.log" -Append -IncludeInvocationHeader -Force | Out-Null
+    Start-Transcript -Path "$LogPath/Win11Reclaim.log" -Append -IncludeInvocationHeader -Force | Out-Null
 }
 else {
     Start-Transcript -Path $script:DefaultLogPath -Append -IncludeInvocationHeader -Force | Out-Null
@@ -160,7 +160,7 @@ else {
 
 # Check if script has all required files
 if (-not ((Test-Path $script:DefaultSettingsFilePath) -and (Test-Path $script:AppsListFilePath) -and (Test-Path $script:RegfilesPath) -and (Test-Path $script:AssetsPath) -and (Test-Path $script:AppSelectionSchema) -and (Test-Path $script:FeaturesFilePath))) {
-    Write-Error "Win11Debloat is unable to find required files, please ensure all script files are present"
+    Write-Error "Win11Reclaim is unable to find required files, please ensure all script files are present"
     Write-Output ""
     Write-Output "Press any key to exit..."
     $null = [System.Console]::ReadKey()
@@ -199,7 +199,7 @@ catch {
 
 # Show WinGet warning that requires user confirmation, Suppress confirmation if Silent parameter was passed
 if (-not $script:WingetInstalled -and -not $Silent) {
-    Write-Warning "WinGet is not installed or outdated, this may prevent Win11Debloat from removing certain apps"
+    Write-Warning "WinGet is not installed or outdated; this may prevent Win11Reclaim from removing certain apps"
     Write-Output ""
     Write-Output "Press any key to continue anyway..."
     $null = [System.Console]::ReadKey()
@@ -222,6 +222,7 @@ if (-not $script:WingetInstalled -and -not $Silent) {
 . "$PSScriptRoot/Scripts/CLI/PrintPendingChanges.ps1"
 . "$PSScriptRoot/Scripts/CLI/PrintHeader.ps1"
 
+#
 # Load GUI functions
 . "$PSScriptRoot/Scripts/GUI/GetSystemUsesDarkMode.ps1"
 . "$PSScriptRoot/Scripts/GUI/SetWindowThemeResources.ps1"
@@ -995,7 +996,7 @@ function CreateSystemRestorePoint {
 
             if ($recentRestorePoints.Count -eq 0) {
                 try {
-                    Checkpoint-Computer -Description "Restore point created by Win11Debloat" -RestorePointType "MODIFY_SETTINGS"
+                    Checkpoint-Computer -Description "Restore point created by Win11Reclaim" -RestorePointType "MODIFY_SETTINGS"
                     return @{ Success = $true; Message = "System restore point created successfully" }
                 }
                 catch {
@@ -1147,7 +1148,7 @@ foreach ($Param in $script:ControlParams) {
     }
 }
 
-# Hide progress bars for app removal, as they block Win11Debloat's output
+# Hide progress bars for app removal, as they block Win11Reclaim's output
 if (-not ($script:Params.ContainsKey("Verbose"))) {
     $ProgressPreference = 'SilentlyContinue'
 }
@@ -1165,7 +1166,7 @@ if ($script:Params.ContainsKey("Sysprep")) {
 
     # Exit script if run in Sysprep mode on Windows 10
     if ($WinVersion -lt 22000) {
-        Write-Error "Win11Debloat Sysprep mode is not supported on Windows 10"
+        Write-Error "Win11Reclaim Sysprep mode is not supported on Windows 10"
         AwaitKeyToExit
     }
 }
@@ -1187,7 +1188,7 @@ if ((Test-Path $script:SavedSettingsFilePath) -and ([String]::IsNullOrWhiteSpace
 if ($RunAppsListGenerator) {
     PrintHeader "Custom Apps List Generator"
 
-    $result = Show-AppSelectionWindow
+    $result = Show-NimbusAppSelection
 
     # Show different message based on whether the app selection was saved or cancelled
     if ($result -ne $true) {
@@ -1204,37 +1205,44 @@ if ($RunAppsListGenerator) {
 # Change script execution based on provided parameters or user input
 if ((-not $script:Params.Count) -or $RunDefaults -or $RunDefaultsLite -or $RunSavedSettings -or ($controlParamsCount -eq $script:Params.Count)) {
     if ($RunDefaults -or $RunDefaultsLite) {
-        ShowCLIDefaultModeOptions
+        Show-NimbusCliDefaultPreset
     }
-    elseif ($RunSavedSettings) {
+        elseif ($RunSavedSettings) {
         if (-not (Test-Path $script:SavedSettingsFilePath)) {
             PrintHeader 'Custom Mode'
             Write-Error "Unable to find LastUsedSettings.json file, no changes were made"
             AwaitKeyToExit
         }
 
-        ShowCLILastUsedSettings
+        Show-NimbusCliLastUsedSettings
     }
     else {
         if ($CLI) {
-            $Mode = ShowCLIMenuOptions 
+            $Mode = Show-NimbusCliMenu 
         }
         else {
             try {
-                $result = Show-MainWindow
+                $result = Show-NimbusMainWindow
             
                 Stop-Transcript
                 Exit
             }
             catch {
-                Write-Warning "Unable to load WPF GUI (not supported in this environment), falling back to CLI mode"
+                Write-Warning "Failed to load WPF GUI, falling back to CLI mode."
+                if ($_) {
+                    Write-Host "GUI error:" -ForegroundColor Yellow
+                    Write-Host "  $($_.Exception.Message)" -ForegroundColor Yellow
+                    if ($_.Exception.InnerException) {
+                        Write-Host "  Inner: $($_.Exception.InnerException.Message)" -ForegroundColor Yellow
+                    }
+                }
                 if (-not $Silent) {
                     Write-Host ""
-                    Write-Host "Press any key to continue..."
+                    Write-Host "Press any key to continue in CLI mode..."
                     $null = [System.Console]::ReadKey()
                 }
 
-                $Mode = ShowCLIMenuOptions
+                $Mode = Show-NimbusCliMenu
             }
         }
     }
@@ -1243,17 +1251,17 @@ if ((-not $script:Params.Count) -or $RunDefaults -or $RunDefaultsLite -or $RunSa
     switch ($Mode) {
         # Default mode, loads defaults and app removal options
         '1' { 
-            ShowCLIDefaultModeOptions
+            Show-NimbusCliDefaultPreset
         }
 
         # App removal, remove apps based on user selection
         '2' {
-            ShowCLIAppRemoval
+            Show-NimbusCliAppRemoval
         }
 
         # Load last used options from the "LastUsedSettings.json" file
         '3' {
-            ShowCLILastUsedSettings
+            Show-NimbusCliLastUsedSettings
         }
     }
 }

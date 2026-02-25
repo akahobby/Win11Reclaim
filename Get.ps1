@@ -92,90 +92,87 @@ param (
     [switch]$HideShare
 )
 
-# Show error if current powershell environment does not have LanguageMode set to FullLanguage 
+# Require FullLanguage mode
 if ($ExecutionContext.SessionState.LanguageMode -ne "FullLanguage") {
-   Write-Host "Error: Win11Reclaim is unable to run on your system. PowerShell execution is restricted by security policies" -ForegroundColor Red
-   Write-Output ""
-   Write-Output "Press enter to exit..."
-   Read-Host | Out-Null
-   Exit
-}
-
-Clear-Host
-Write-Output "-------------------------------------------------------------------------------------------"
-Write-Output " Win11Reclaim Script - Get"
-Write-Output "-------------------------------------------------------------------------------------------"
-
-Write-Output "> Downloading Win11Reclaim package..."
-
-# Download latest version of the original Win11Debloat project from GitHub as zip archive
-try {
-    $LatestReleaseUri = (Invoke-RestMethod https://api.github.com/repos/Raphire/Win11Debloat/releases/latest).zipball_url
-    Invoke-RestMethod $LatestReleaseUri -OutFile "$env:TEMP/win11debloat.zip"
-}
-catch {
-    Write-Host "Error: Unable to fetch latest release from GitHub. Please check your internet connection and try again." -ForegroundColor Red
+    Write-Host "Error: Win11Reclaim cannot run. PowerShell execution is restricted by security policies." -ForegroundColor Red
     Write-Output ""
     Write-Output "Press enter to exit..."
     Read-Host | Out-Null
     Exit
 }
 
-# Remove old script folder if it exists, except for CustomAppsList and LastUsedSettings.json files
-if (Test-Path "$env:TEMP/Win11Debloat") {
+Clear-Host
+Write-Output "-------------------------------------------------------------------------------------------"
+Write-Output " Win11Reclaim - Get"
+Write-Output "-------------------------------------------------------------------------------------------"
+
+Write-Output "> Downloading Win11Reclaim..."
+
+$zipPath = "$env:TEMP\win11reclaim.zip"
+$extractPath = "$env:TEMP\Win11Reclaim"
+
+try {
+    # Use main branch archive (works without GitHub Releases)
+    $archiveUri = "https://github.com/akahobby/Win11Reclaim/archive/refs/heads/main.zip"
+    Invoke-RestMethod -Uri $archiveUri -OutFile $zipPath -ErrorAction Stop
+}
+catch {
+    Write-Host "Error: Could not download from GitHub. Check your internet connection and try again." -ForegroundColor Red
     Write-Output ""
-    Write-Output "> Cleaning up old working folder..."
-    Get-ChildItem -Path "$env:TEMP/Win11Debloat" -Exclude CustomAppsList,LastUsedSettings.json,Win11Debloat.log,Logs | Remove-Item -Recurse -Force
+    Write-Output "Press enter to exit..."
+    Read-Host | Out-Null
+    if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
+    Exit
+}
+
+# Preserve user data when cleaning an existing install
+$exclude = @('CustomAppsList', 'LastUsedSettings.json', 'Win11Debloat.log', 'Logs')
+if (Test-Path $extractPath) {
+    Write-Output ""
+    Write-Output "> Cleaning previous Win11Reclaim folder..."
+    Get-ChildItem -Path $extractPath -Exclude $exclude | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 Write-Output ""
 Write-Output "> Unpacking..."
 
-# Unzip archive to working folder
-Expand-Archive "$env:TEMP/win11debloat.zip" "$env:TEMP/Win11Debloat"
+# Extract (zip contains root folder Win11Reclaim-main)
+Expand-Archive -Path $zipPath -DestinationPath $extractPath -Force
+Remove-Item $zipPath -Force -ErrorAction SilentlyContinue
 
-# Remove archive
-Remove-Item "$env:TEMP/win11debloat.zip"
+# Move contents of Win11Reclaim-main into extract path
+$archiveRoot = Join-Path $extractPath "Win11Reclaim-main"
+if (Test-Path $archiveRoot) {
+    Get-ChildItem -Path $archiveRoot | Move-Item -Destination $extractPath -Force
+    Remove-Item $archiveRoot -Recurse -Force -ErrorAction SilentlyContinue
+}
 
-# Move files
-Get-ChildItem -Path "$env:TEMP/Win11Debloat/Raphire-Win11Debloat-*" -Recurse | Move-Item -Destination "$env:TEMP/Win11Debloat"
-
-# Make list of arguments to pass on to the script
+# Build argument list for main script
 $arguments = $($PSBoundParameters.GetEnumerator() | ForEach-Object {
     if ($_.Value -eq $true) {
         "-$($_.Key)"
-    } 
-    else {
-         "-$($_.Key) ""$($_.Value)"""
+    } else {
+        "-$($_.Key) ""$($_.Value)"""
     }
 })
 
 Write-Output ""
 Write-Output "> Running Win11Reclaim..."
 
-# Minimize the powershell window when no parameters are provided
-if ($arguments.Count -eq 0) {
-    $windowStyle = "Minimized"
-}
-else {
-    $windowStyle = "Normal"
-}
+$windowStyle = if ($arguments.Count -eq 0) { "Minimized" } else { "Normal" }
+$scriptPath = Join-Path $extractPath "Win11Debloat.ps1"
 
-# Run Win11Reclaim script with the provided arguments (original entry point name is kept for compatibility)
-$debloatProcess = Start-Process powershell.exe -WindowStyle $windowStyle -PassThru -ArgumentList "-executionpolicy bypass -File $env:TEMP\Win11Debloat\Win11Debloat.ps1 $arguments" -Verb RunAs
+$debloatProcess = Start-Process powershell.exe -WindowStyle $windowStyle -PassThru -ArgumentList "-ExecutionPolicy Bypass -File `"$scriptPath`" $arguments" -Verb RunAs
 
-# Wait for the process to finish before continuing
 if ($null -ne $debloatProcess) {
     $debloatProcess.WaitForExit()
 }
 
-# Remove all remaining script files, except for CustomAppsList and LastUsedSettings.json files
-if (Test-Path "$env:TEMP/Win11Debloat") {
+# Optional cleanup of script files (keep user data)
+if (Test-Path $extractPath) {
     Write-Output ""
     Write-Output "> Cleaning up..."
-
-    # Cleanup, remove working directory
-    Get-ChildItem -Path "$env:TEMP/Win11Debloat" -Exclude CustomAppsList,LastUsedSettings.json,Win11Debloat.log,Logs | Remove-Item -Recurse -Force
+    Get-ChildItem -Path $extractPath -Exclude $exclude | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 Write-Output ""
